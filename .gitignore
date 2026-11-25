@@ -59,6 +59,7 @@ tools/*
 !tools/ha_dashboard.py
 !tools/ha_add_esphome.py
 !tools/scrub_secrets.py
+!tools/audit_repo_secrets.py
 
 # =============================================================================
 #  Rust / ADB / 红外 那套旧方案的产物和依赖
