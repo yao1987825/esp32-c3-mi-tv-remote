@@ -344,7 +344,8 @@ HID 按键，电视没连上时什么也发不出去，能做的只有「连着�
 > 大写、空格、连字符在转 object_id 时都会变成下划线。
 
 API 用的是加密连接（ESPHome 2026.1 起不再支持密码认证），
-密钥在 `tv-remote.yaml` 的 `api.encryption.key` 里。
+密钥在 `secrets.yaml` 的 `api_encryption_key` 里（`tv-remote.yaml` 里用
+`!secret api_encryption_key` 引用它）。
 
 面板 YAML 在 `../ha-package/dashboard.yaml` 的「电视」那一页。
 
