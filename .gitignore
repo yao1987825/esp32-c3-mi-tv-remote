@@ -1,0 +1,134 @@
+# =============================================================================
+#  凭据 —— **绝对不能提交**
+# =============================================================================
+esp32-adb-remote/esphome/secrets.yaml
+tools/credentials.py
+.env
+*.env
+
+# =============================================================================
+#  本地工具链（5.9 GB：Rust / MinGW / cargo 缓存）
+#  这些是本机下载的编译工具链，不是项目代码。
+# =============================================================================
+tools/cargo-home/
+tools/espflash/
+tools/mingw/
+tools/rust/
+tools/rust-dl/
+tools/rust-gnu/
+
+# =============================================================================
+#  tools/ 白名单
+#
+#  这个目录里混着三批东西：① ESPHome 蓝牙遥控器方案的工具 ② 早期 Rust/ADB/
+#  红外方案的脚本 ③ 一次性排障探针。这里只收 ①，其余全部排除 ——
+#  仓库里只留**和这个项目直接相关、别人能复现/验证**的工具。
+# =============================================================================
+tools/*
+!tools/credentials.example.py
+!tools/tv_remote.py
+!tools/capture_boot.py
+!tools/check_board.py
+!tools/board_entities.py
+!tools/board_status.py
+!tools/board_state.py
+!tools/board_press.py
+!tools/probe_api.py
+!tools/probe_web.py
+!tools/list_entities.py
+!tools/verify_release.py
+!tools/verify_wake_only_power.py
+!tools/verify_reconnect.py
+!tools/test_no_self_wake.py
+!tools/test_all_keys.py
+!tools/test_ha_power_cycle.py
+!tools/test_wake_packet.py
+!tools/test_wake_from_orig_off.py
+!tools/test_power_cycle.py
+!tools/sniff_loop.py
+!tools/sniff_capture.py
+!tools/watch_after_wake.py
+!tools/watch_ble.py
+!tools/try_mi_rc.py
+!tools/try_mi_rc_log.py
+!tools/try_wake.py
+!tools/pair_and_test.py
+!tools/press_on_connect.py
+!tools/ha_localize.py
+!tools/ha_entity_registry.py
+!tools/ha_dashboard.py
+!tools/ha_add_esphome.py
+!tools/scrub_secrets.py
+
+# =============================================================================
+#  Rust / ADB / 红外 那套旧方案的产物和依赖
+#  （仓库只收 ESPHome 蓝牙遥控器方案）
+# =============================================================================
+esp32-adb-remote/target/
+esp32-adb-remote/dist/
+esp32-adb-remote/vendor/
+esp32-adb-remote/.cargo/
+esp32-adb-remote/src/
+esp32-adb-remote/firmware/
+esp32-adb-remote/server/
+esp32-adb-remote/adb-host/
+esp32-adb-remote/adb-proto/
+esp32-adb-remote/ir-tools/
+esp32-adb-remote/build_support/
+esp32-adb-remote/tools/
+esp32-adb-remote/ha-package/
+# Rust 工程根目录（仓库只收 ESPHome 方案）
+esp32-adb-remote/Cargo.toml
+esp32-adb-remote/Cargo.lock
+esp32-adb-remote/build.rs
+esp32-adb-remote/build.ps1
+
+# =============================================================================
+#  第三方参考项目（只是当初查资料用的别人的仓库，不打包）
+# =============================================================================
+ESP32-BLE-Keyboard-master/
+esphome-blekeyboard-main/
+
+# =============================================================================
+#  不收的文件
+# =============================================================================
+# AI 工作日志（私人笔记，不是项目交付物）
+.workbuddy-ai/
+
+# 旧 Rust/ADB 架构的手册（讲的是已被蓝牙方案取代的那套）
+ESP32-C3-SuperMini-刷机与使用手册.md
+
+# =============================================================================
+#  备份 / 临时文件
+# =============================================================================
+*.bak
+*.bak-*
+*.bak_*
+*.old
+*.orig
+*.log
+*.log.err
+*~
+
+# =============================================================================
+#  ESPHome 编译缓存
+# =============================================================================
+.esphome/
+secrets.yaml
+
+# =============================================================================
+#  Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# =============================================================================
+#  编辑器 / 系统
+# =============================================================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

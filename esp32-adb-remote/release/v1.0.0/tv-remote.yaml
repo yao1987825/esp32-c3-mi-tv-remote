@@ -1,0 +1,281 @@
+# =============================================================================
+#  ESP32-C3 SuperMini — 小米电视蓝牙遥控器
+#  正式版 v1.0.0（2026-11-24）
+# =============================================================================
+#  这份固件让板子变成电视的**蓝牙遥控器**。
+#
+#  为什么是蓝牙而不是 ADB：
+#  这台电视是 MiTV4-ANSM0（Android 6.0.1），它自己的遥控器就是蓝牙 HID 设备
+#  （电视上 `dumpsys input` 显示 `小米蓝牙语音遥控器`，bus=0x0005 = BUS_BLUETOOTH）。
+#  所以板子只要伪装成一个 HID 键盘（带 Consumer Control 报告），电视就会把它
+#  当成原装遥控器：音量是 usage 0xE9 / 0xEA，电源是 0x30。
+#
+#  用到的组件是 `esphome-ble-mi-remote`，它的 HID 身份（vid 0x2717 / pid
+#  0x32b9）和小米原装遥控器是同一个厂商号，电视才会认。
+#
+#  ★ 待机唤醒（v1.0.0 的核心能力）：
+#  板子广播一个 31 字节的「点名包」，里面有个 AD 字段 `0xFE` 装着
+#  **电视自己蓝牙地址的后 3 字节（逆序）**。待机的电视扫到自己的地址
+#  就知道「这条是发给我的」，于是唤醒自己并主动连回来。
+#  详见 esp32-adb-remote/蓝牙待机唤醒-根因与修复_2026-11-23.md
+#
+#  ---------------------------------------------------------------------------
+#  编译（不要直接 esphome compile，路径里有中文会让 MinGW 链接失败）：
+#      .\build.ps1            # 编译
+#      .\build.ps1 -Upload    # 编译并烧录
+#      .\build.ps1 -Run       # 编译并烧录 + 看日志
+#  ---------------------------------------------------------------------------
+# =============================================================================
+
+substitutions:
+  device_name: mi-tv-remote
+  friendly_name: 小米电视遥控器
+
+  # --- WiFi（和 Rust 固件同一套网络）---
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+
+  # BLE 广播名必须是**纯 ASCII**：组件按字节截到 15 个字符，中文会被截成
+  # 半个字，电视设备列表里就是乱码。（和下面的 name 是两回事。）
+  #
+  # 名字必须是 "MI Remote"：这台电视的蓝牙列表**只显示已缓存过的名字**，
+  # 实测别的名字（"MI RC"、"MI Remote C3"）在设置页里根本扫不到，
+  # 也就没法重新配对。原装遥控器的 "MI RC" 只在按键时短暂广播，
+  # 设置页同样看不到。
+  ble_name: MI Remote
+  ble_manufacturer: Xiaomi
+  # --- Home Assistant / OTA 密码 ---
+  ota_password: !secret ota_password
+  web_password: !secret web_password
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  comment: "ESP32-C3 蓝牙遥控器 v1.0.0 — 模拟小米原装蓝牙遥控器（含待机唤醒）"
+  min_version: "2024.6.0"
+  project:
+    name: "home.mi-tv-remote"
+    version: "1.0.0"
+
+  # 板子刚起来时如果还没连上电视，原装遥控器也是按一下才唤醒的，
+  # 所以这里不做任何自动按键。
+  on_boot:
+    priority: -100
+    then:
+      - logger.log: "启动中，等待与电视配对"
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      # NimBLE：组件自己也会设这几个，这里再写一遍是为了明确
+      CONFIG_BT_ENABLED: y
+      CONFIG_BT_NIMBLE_ENABLED: y
+      # PERIPHERAL 是必须的：板子要当遥控器（GATT Server）
+      CONFIG_BT_NIMBLE_ROLE_PERIPHERAL: y
+      # CENTRAL 用来「主动连一下已配对的电视」把它唤醒
+      CONFIG_BT_NIMBLE_ROLE_CENTRAL: y
+      # 配对信息（NVS）必须留着，重启后电视才认得这个遥控器
+      CONFIG_BT_NIMBLE_NVS_PERSIST: y
+
+external_components:
+  # 由 build.ps1 复制到纯 ASCII 路径（编译器的 MinGW 链接器读不了中文路径）
+  - source:
+      type: local
+      path: C:/esp32c3/esphome/components
+    components: [ble_mi_remote]
+
+logger:
+  level: INFO
+  # 2026-11-23 配对排障已完成：全局保持 INFO 减少串口噪音。
+  # ESP32-C3 的 USB-C 口接的是芯片原生 USB(Serial/JTAG)，日志就从这里出来，
+  # 刷固件和看日志用同一根线。排针上的 UART0(GPIO21/20) 也可以用
+  # (hardware_uart: UART0)。
+  hardware_uart: USB_SERIAL_JTAG
+  baud_rate: 115200
+
+# ---- 蓝牙遥控器本体 -------------------------------------------------------
+ble_mi_remote:
+  id: mi_remote
+  name: ${friendly_name}
+  ble_name: MI Remote
+  manufacturer_id: ${ble_manufacturer}
+  battery_level: 100
+  # ---- 广播样式：mi_wake（v1.0.0 默认）----------------------------------
+  # 原装遥控器真正在发的那个 **31 字节唤醒包**：
+  #
+  #   02 01 05              Flags
+  #   03 FF 00 01           厂商数据 company id 0x0000
+  #   06 08 "MI RC"         短名
+  #   03 02 12 18           UUID 0x1812 (HID)
+  #   04 0D 04 05 00        设备类别字段
+  #   02 0A 00              TX power 0 dBm
+  #   04 FE AA 77 62        ★小米唤醒字段：电视自己地址的后 3 字节（逆序）
+  #
+  # 最后那个 0xFE 字段就是答案：电视在里面看到自己的地址，就知道「这条广播
+  # 是发给我的」，于是唤醒自己并主动连回来。
+  #
+  # 之前一直没发现它，是因为板子自己的嗅探器只打印固定几种 AD type，
+  # 0x0D 和 0xFE 根本不在那张表里 —— 那些字节一直在空中，只是没被记下来。
+  # （参考实现：github.com/dckiller51/esphome-xiaomi-ble-wake）
+  #
+  # 完整名 "MI Remote" 放在 scan response 里（31 字节的 ADV 包已经满了）。
+  advert_style: mi_wake
+  # 电视的蓝牙地址（用于唤醒包的 0xFE 字段）。写死它，新刷的板子还没配对时
+  # 也能发出正确的唤醒包。
+  target_mac_address: "C8:28:32:62:77:AA"
+  # ⚠ 不要启用 own_mac（仿冒原装遥控器 MAC）。
+  # 2026-11-23 结论：电视一旦被「彻底关机」（拔电才能恢复），连原装遥控器
+  # 都唤不醒，任何 BLE 唤醒都不可能生效。仿冒原装地址还会让电视上电后
+  # 看到两个相同 MAC 的设备，反而干扰原装遥控器，所以撤销。
+  # （另外：C3 + IDF 5.5 + NimBLE 下设 own_mac 会触发 host reset。）
+  # own_mac: "D4:B8:FF:7D:AD:6D"
+  #
+  # own_addr_random：把板子自己的芯片 MAC 改成 **random static** 地址
+  # （最高两位强制为 11），和原装遥控器同一类地址。**默认关闭** ——
+  # 改身份地址会让现有的 bond 作废、需要重新配对，而唤醒靠的是广播包里的
+  # 0xFE 字段（不是地址），实测用板子自己的 public 地址已经能唤醒。
+  # 留作第二个杠杆备用：打开后板子地址会从 9C:96:D5:B0:C2:7E 变成
+  # BC:96:D5:B0:C2:7E。
+  own_addr_random: false
+  # 重启后自动重新广播，等电视来连
+  reconnect: true
+
+# ---- WiFi -----------------------------------------------------------------
+wifi:
+  ssid: ${wifi_ssid}
+  password: ${wifi_password}
+  # 万一主路由连不上，起一个自己的 AP 方便重配
+  ap:
+    ssid: "${device_name}-setup"
+    password: ${wifi_password}
+
+captive_portal:
+
+# ---- Home Assistant -------------------------------------------------------
+# 原生 API：板子上那 24 个按键（音量+/音量-/电源/主页/返回…）会**自动**
+# 变成 HA 里的 button 实体，HA 面板上直接就有按钮，不用写任何 YAML。
+#
+# ESPHome 2026.1 起 API 的密码认证被删除了，必须用加密密钥。
+# 密钥要和 HA 里填的一致（添加设备时输入）。
+#
+# 在 HA 里添加本设备：
+#   设置 → 设备与服务 → 添加设备 → ESPHome
+#   → 主机名填 mi-tv-remote.local 或直接填 IP 192.168.6.101
+#   → 端口 6053 → 粘贴下面这把加密密钥
+api:
+  encryption:
+    key: !secret api_encryption_key
+  reboot_timeout: 0s
+  on_client_connected:
+    - logger.log: "Home Assistant 已连接"
+
+ota:
+  - platform: esphome
+    password: ${ota_password}
+
+# 板子自带的小网页（实体列表 + 日志 + OTA），局域网里用 http://<板子IP>/ 打开
+web_server:
+  port: 80
+  auth:
+    username: admin
+    password: ${web_password}
+    type: digest
+  local: true
+  include_internal: true
+
+# ---- 便捷动作 -------------------------------------------------------------
+# 组件会自动生成 button 实体（名字形如 button.ble_mi_remote_key_volumeup）。
+# 下面这些脚本是给「不想在 HA 里点实体」时用的：直接在 HA 里调用 service。
+button:
+  # NOTE: 名字必须是 ASCII —— ESPHome 会把中文名转成同一个 ASCII id，
+  # 两个「音量 x5」就会撞车（Duplicate button entity）。
+  - platform: template
+    name: "Vol Up x5"
+    id: vol_up_5
+    on_press:
+      - repeat:
+          count: 5
+          then:
+            - ble_mi_remote.press:
+                id: mi_remote
+                code: "Volume Up"
+            - delay: 300ms
+
+  - platform: template
+    name: "Vol Down x5"
+    id: vol_down_5
+    on_press:
+      - repeat:
+          count: 5
+          then:
+            - ble_mi_remote.press:
+                id: mi_remote
+                code: "Volume Down"
+            - delay: 300ms
+
+  - platform: template
+    name: "TV Home"
+    id: tv_home
+    on_press:
+      - ble_mi_remote.press:
+          id: mi_remote
+          code: "Android TV"
+
+  # ---- 真正的「长按」电源键 ------------------------------------------------
+  # 普通按键是「按下 → 8ms 后自动松开」。电源键想长按就必须让 HID 报告
+  # 一直保持按下状态，所以这里用 with_timer: false 关掉自动松手，
+  # 等 delay 走完再显式 release。
+  #
+  # 电视那边短按/长按电源分别是「开关机」还是「只关机」，要实测才知道，
+  # 所以两个都留着：面板上长按触发的是这个长按版本。
+  - platform: template
+    name: "TV Power Hold"
+    id: tv_power_hold
+    on_press:
+      - ble_mi_remote.press:
+          id: mi_remote
+          code: "Power"
+          with_timer: false
+      - delay: 2s
+      - ble_mi_remote.release:
+          id: mi_remote
+
+  # ---------------------------------------------------------------------
+  #  开机/唤醒用的是上面自动生成的 **Power** 按钮（ble-mi-remote-Power）：
+  #    · 电视亮着  → 发 HID 电源键 → 电视进关屏待机
+  #    · 电视待机  → 发唤醒广播（31 字节 mi_wake 包）→ 电视重新亮屏
+  #
+  #  2026-11-24 正式版：这里曾经有一堆「唤醒」按钮（connect_wake、
+  #  MiPower 的 0x0046 包、mi_rc 变体…），实测**全部无效**，已删除：
+  #    · connect_wake（板子主动去连电视）→ 电视待机时根本不接受主动连接
+  #    · MiPower 包（company id 0x0046）→ 那是小米盒子的协议，电视不理
+  #    · mi_rc / mi_rc_own 唤醒包 → 被下面的 mi_wake 样式取代
+  #  保留它们只会让人分不清该按哪个。需要重新排查时看
+  #  esp32-adb-remote/蓝牙待机唤醒-根因与修复_2026-11-23.md。
+  # ---------------------------------------------------------------------
+
+  # ---- BLE 嗅探器 ---------------------------------------------------------
+  # 电视关机时，让板子监听空气里的所有 BLE 广播并把原始字节打到串口。
+  # 然后用**原装遥控器**按一下电源键 —— 它发出的那个包就是我们该模仿的。
+  # ⚠ 扫描期间板子自己不能广播（NimBLE 一个时刻只能做一件 GAP 事件），
+  #   所以嗅探时电视扫不到板子，属正常。
+  - platform: template
+    name: "TV Sniff"
+    id: tv_sniff
+    on_press:
+      - ble_mi_remote.sniff:
+          id: mi_remote
+          seconds: 90
+
+  # ---- 强制回到「可被发现」状态 -------------------------------------------
+  # 板子断连 30 秒后会自动回到普通广播模式（保持可被发现），
+  # 这个按钮是手动触发同一件事，用来强制让电视重新扫到板子。
+  # 注意：这里用的是 reconnect_advert，**不会删掉配对记录**
+  #（plain_advert 会删，千万别用错）。
+  - platform: template
+    name: "TV Reconnect"
+    id: tv_reconnect
+    on_press:
+      - ble_mi_remote.reconnect_advert:
+          id: mi_remote

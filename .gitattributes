@@ -1,0 +1,8 @@
+# 保持 LF 行尾（Windows 上默认会转成 CRLF，对 yaml / py / sh 都不友好）
+* text=auto eol=lf
+
+*.bin binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.zip binary

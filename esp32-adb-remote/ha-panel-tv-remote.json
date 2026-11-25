@@ -1,0 +1,179 @@
+{
+  "views": [
+    {
+      "title": "电视遥控",
+      "path": "tv",
+      "icon": "mdi:remote",
+      "cards": [
+        {
+          "type": "markdown",
+          "content": "## 📺 电视　{% if is_state('binary_sensor.mi_tv_remote_connected','on') %}🟢 已开机{% else %}⚫ 已关机{% endif %}"
+        },
+        {
+          "type": "grid",
+          "columns": 1,
+          "square": false,
+          "cards": [
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_power",
+              "name": "电源",
+              "icon": "mdi:power",
+              "show_name": true,
+              "show_state": false
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "columns": 1,
+          "square": false,
+          "cards": [
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_up",
+              "name": "上",
+              "icon": "mdi:arrow-up-bold",
+              "show_name": true,
+              "show_state": false
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "columns": 3,
+          "square": false,
+          "cards": [
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_left",
+              "name": "左",
+              "icon": "mdi:arrow-left-bold",
+              "show_name": true,
+              "show_state": false
+            },
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_enter",
+              "name": "确认",
+              "icon": "mdi:checkbox-marked-circle-outline",
+              "show_name": true,
+              "show_state": false
+            },
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_right",
+              "name": "右",
+              "icon": "mdi:arrow-right-bold",
+              "show_name": true,
+              "show_state": false
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "columns": 1,
+          "square": false,
+          "cards": [
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_down",
+              "name": "下",
+              "icon": "mdi:arrow-down-bold",
+              "show_name": true,
+              "show_state": false
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "columns": 1,
+          "square": false,
+          "cards": [
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_back",
+              "name": "返回",
+              "icon": "mdi:keyboard-return",
+              "show_name": true,
+              "show_state": false
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "columns": 2,
+          "square": false,
+          "cards": [
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_volume_down",
+              "name": "音量 −",
+              "icon": "mdi:volume-minus",
+              "show_name": true,
+              "show_state": false
+            },
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_volume_up",
+              "name": "音量 +",
+              "icon": "mdi:volume-plus",
+              "show_name": true,
+              "show_state": false
+            }
+          ]
+        },
+        {
+          "type": "grid",
+          "columns": 2,
+          "square": false,
+          "cards": [
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_vol_down_x5",
+              "name": "音量 −×5",
+              "icon": "mdi:volume-low",
+              "show_name": true,
+              "show_state": false
+            },
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_vol_up_x5",
+              "name": "音量 +×5",
+              "icon": "mdi:volume-high",
+              "show_name": true,
+              "show_state": false
+            }
+          ]
+        },
+        {
+          "type": "markdown",
+          "content": "#### 维护｜蓝牙连接：{% if is_state('binary_sensor.mi_tv_remote_connected','on') %}🟢 已连接电视{% else %}🔴 未连接（按键无效，先点「重新广播」）{% endif %}"
+        },
+        {
+          "type": "grid",
+          "columns": 2,
+          "square": false,
+          "cards": [
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_reconnect",
+              "name": "重新广播（重连）",
+              "icon": "mdi:bluetooth-connect",
+              "show_name": true,
+              "show_state": false
+            },
+            {
+              "type": "button",
+              "entity": "button.mi_tv_remote_sniff",
+              "name": "BLE 嗅探",
+              "icon": "mdi:radar",
+              "show_name": true,
+              "show_state": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
