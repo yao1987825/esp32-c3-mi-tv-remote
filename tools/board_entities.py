@@ -39,7 +39,9 @@ def get(path: str) -> bytes:
 
 def main() -> int:
     # ESPHome 的网页版是个 JS 应用，实体状态走 JSON 接口。
-    for path in ("/sensor/connected", "/binary_sensor/connected"):
+    # ⚠ 组件的 binary_sensor 名字就叫 "Connected"（大写 C），
+    #   没有 "ble-mi-remote-" 前缀 —— 前缀只有按键实体才有。
+    for path in ("/binary_sensor/Connected", "/sensor/connected"):
         try:
             raw = get(path)
         except Exception as err:  # noqa: BLE001

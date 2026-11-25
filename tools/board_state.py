@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import os
 import re
 import sys
 import time
@@ -19,9 +20,16 @@ for stream in (sys.stdout, sys.stderr):
     except Exception:  # noqa: BLE001
         pass
 
-HOST = "192.168.6.101"
-USER = "admin"
-PASS = "tv-remote"
+try:
+    from credentials import BOARD_IP, WEB_PASS, WEB_USER
+except ImportError:  # 没建 credentials.py 就读环境变量
+    HOST = os.environ.get("TV_REMOTE_BOARD_IP", "192.168.6.101")
+    USER = os.environ.get("TV_REMOTE_WEB_USER", "admin")
+    PASS = os.environ.get("TV_REMOTE_WEB_PASS", "")
+else:
+    HOST = BOARD_IP
+    USER = WEB_USER
+    PASS = WEB_PASS
 
 
 def digest_header(user, password, realm, nonce, uri, qop="", opaque="", method="GET"):
@@ -74,13 +82,15 @@ def main() -> int:
         secs = float(args[1]) if len(args) > 1 else 30.0
 
     if not watch:
-        print(get("/binary_sensor/connected"))
+        print(get("/binary_sensor/Connected"))
         return 0
 
     end = time.time() + secs
     last = None
     while time.time() < end:
-        val = get("/binary_sensor/connected").strip()
+        # ⚠ 组件的 binary_sensor 名字就叫 "Connected"（大写 C），
+        #   没有 "ble-mi-remote-" 前缀 —— 前缀只有按键实体才有。
+        val = get("/binary_sensor/Connected").strip()
         if val != last:
             print(f"[{time.strftime('%H:%M:%S')}] connected = {val}", flush=True)
             last = val

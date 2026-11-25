@@ -6,7 +6,7 @@ web_server 触发按钮动作：
 
     POST http://<板子>/button/<实体object_id>/press
 
-web_server 用 digest 认证（admin / tv-remote），所以脚本要自己算
+web_server 用 digest 认证（账号密码在 `credentials.py` 里），所以脚本要自己算
 digest 响应。
 
 用法:
